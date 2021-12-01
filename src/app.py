@@ -111,8 +111,16 @@ class RelationshipInfo():
         ttk.Label(self.frame, text=name).pack()
         ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
 
+        self.input = tk.StringVar()
+
+        if self.name == 'Control':
+            EntryWithPlaceholder(self.frame, f'Condition (ex. x > 30)', textvariable=self.input).pack(fill='x', expand=True) 
+
     def add_to_recipe(self):
-        self.program.insert(tk.END, "Relationship: " + self.name, '   Service A', '   Service B')
+        if self.name == 'Control':
+            self.program.insert(tk.END, f'Relationship: Control({self.input.get()})', '   Service A', '   Service B')
+        else:
+            self.program.insert(tk.END, "Relationship: " + self.name, '   Service A', '   Service B')
 
 
 class App(tk.Tk):
@@ -254,6 +262,28 @@ class App(tk.Tk):
                     
                     Relationship.Cooperative.Extend(service_a, service_b).exec(args_a+args_b)
                 
+                if 'Relationship: Control' in action:
+                    condition = action[action.find('(')+1:action.find(')')].replace(' ','')
+                    if condition[0] != 'x':
+                        self.log("expecting x variable for boolean expression")
+                        return
+                    if condition[1] not in ('>', '<', '='):
+                        self.log("expecting comparison for condition (ex. >, <, =)")
+                        return
+                    if not condition[2:].isnumeric():
+                        self.log("expecting integer value for comparison")
+                        return
+                    if not service_a.has_output:
+                        self.log('Service A must output a value for the "Control" relationship')
+                    a = int(condition[2:])
+                    if condition[1] == '>':
+                        c = lambda x: int(x) > a
+                    if condition[1] == '<':
+                        c = lambda x: int(x) < a
+                    if condition[1] == '=':
+                        c = lambda x: int(x) == a
+
+                    Relationship.Cooperative.Control(service_a, service_b).exec(args_a, args_b, c)
                 
                 #Competitive
                 if 'Relationship: Interfere' in action or 'Relationship: Contest' in action:
