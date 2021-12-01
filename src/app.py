@@ -41,7 +41,11 @@ class ServiceButton():
         self.button = ttk.Button(container, text='Add Service', 
                    command=lambda:where.insert(0, name)).pack()
     #Change TODO
-    
+class ServiceInputs():
+    def __init__(self, container, where: DragDropListbox, name):
+        inputs = tk.StringVar()
+        textboxinput = ttk.Entry(container, textvariable=inputs)
+        textboxinput.pack(fill='x', expand = True)  
 
 class App(tk.Tk):
     def __init__(self):
@@ -94,7 +98,7 @@ class App(tk.Tk):
 
         # Adding some buttons to the recipe view and a title
         ttk.Label(recipes, text ="Recipes: This is where the services are dragged and arranged").pack()
-        ttk.Button(recipes, text='Save').pack(side=tk.RIGHT)
+        
 
         output = tk.Text(recipes, state='disabled', width=44, height=20)
         output.pack()
@@ -108,7 +112,8 @@ class App(tk.Tk):
 
         clr = ttk.Button(recipes, text='Clear', command=clear)
         clr.pack()
-        
+        save = ttk.Button(recipes, text='Save')
+        save.pack()
         
         
         def run():
@@ -143,6 +148,7 @@ class App(tk.Tk):
             ttk.Label(services, text='Name: ' + s.name).pack()
             ttk.Label(services, text='Thing: ' + s.thing.id).pack()
             ttk.Label(services, text='Smart Space: ' + s.thing.space).pack()
+            ServiceInputs(services, d, s.name)
             ServiceButton(services, d, s.name)
             
        
