@@ -6,6 +6,7 @@ from utils import *
 
 available_services = []
 available_things = []
+enabled_services = []
 
 execute = []
 
@@ -88,18 +89,37 @@ class ServiceInfo():
 
 
 class ThingInfo():
-    def __init__(self, master, thing: Thing):
+    def __init__(self, master, thing: Thing, service_frame, program: DragDropListbox):
         self.frame = ttk.Frame(master)
         self.frame.pack()
         self.enabled = False
+        self.name = thing.id
+        self.service_frame = service_frame
+        self.program = program
+
         ttk.Label(self.frame, text='Thing: ' + thing.id).pack()
         ttk.Label(self.frame, text='Space: ' + thing.space).pack()
         ttk.Label(self.frame, text='IP Adress: ' + thing.address).pack()
         ttk.Checkbutton(master, text='Show Services', variable=self.enabled, onvalue=1, offvalue=0, command=self.toggle).pack()
 
+    def clear_frame(self):
+        for widget in self.service_frame.winfo_children():
+            widget.destroy()
+    
     def toggle(self):
         self.enabled = not self.enabled
-        print('Checked', self.enabled)
+        self.clear_frame()
+        if self.enabled:
+            for service in available_services:
+                if service.thing.id == self.name:
+                    enabled_services.append(service)
+            for s in enabled_services:
+                ServiceInfo(self.service_frame, self.program, s)
+        else:
+            for service in available_services:
+                if service.thing.id == self.name:
+                    enabled_services.remove(service)
+            
 
 class RelationshipInfo():
     def __init__(self, master, program: DragDropListbox, name):
@@ -180,11 +200,12 @@ class App(tk.Tk):
 
 
         #Create information boxes for each Tab
-        for s in available_services:
-            ServiceInfo(services, self.program, s)
+
+        # for s in available_services:
+        #     ServiceInfo(services, self.program, s)
 
         for t in available_things:
-            ThingInfo(things, t)
+            ThingInfo(things, t, services, self.program)
         
         #pos
         RelationshipInfo(relationships, self.program, "Drive")
@@ -198,6 +219,8 @@ class App(tk.Tk):
         RelationshipInfo(relationships, self.program, "Refine")
         RelationshipInfo(relationships, self.program, "Subsume")
 
+
+    
 
     def clear(self):
             self.program.delete(0,tk.END)
