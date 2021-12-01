@@ -2,6 +2,7 @@ import socket
 import struct
 import time
 import json
+import pickle
 
 
 class Thing():
@@ -51,8 +52,68 @@ class Service():
 
 
 class Relationship():
-    def __init__(self, service_1, service_2):
-        pass
+    class Cooperative():
+        class Control():
+            def __init__(self, A: Service, B: Service):
+                self.A = A if A.has_output else None
+                self.B = B
+            
+            def exec(self, A_input, B_input, condition):
+                if self.A != None:
+                    result = self.A.exec(A_input)
+                    if condition(result):
+                        print('Output of A satisfies condition, executing B...')
+                        return self.B.exec(B_input)
+                    else:
+                        print('Output of A does not satisfy condition.')
+                else:
+                    print(f'Service A cannot control B since it does not output.')
+
+        class Drive():
+            def __init__(self, A: Service, B: Service):
+                self.A = A if A.has_output else None
+                self.B = B
+            
+            def exec(self, A_input):
+                if self.A != None:
+                    result = self.A.exec(A_input)
+                    return self.B.exec([int(result)])
+                else:
+                    print(f'Service A cannot drive B since it does not output.')
+
+        class Support():
+            def __init__(self, A: Service, B: Service):
+                self.A = A
+                self.B = B
+
+            def exec(self, A_input, B_input):
+                self.A.exec(A_input)
+                return self.B.exec(B_input)
+
+        class Extend():
+            def __init__(self, A: Service, B: Service):
+                self.A = A
+                self.B = B
+
+            def exec(self, input):
+                self.A.exec(input[:self.A.argc])
+                return self.B.exec(input[self.A.argc:self.A.argc+self.B.argc])
+
+    # Competitve relationships update the execution path
+    class Competitive():
+        # If this relationship is defined, the two services cannot both be in the rest,
+        # as they either Contest (provide  mutually exclusive solutions for the same problem) 
+        # or Interfere (services are insecure if they coexist at same time/space)
+        class Block():
+            def __init__(self, A: Service, B: Service):
+                self.A = A
+                self.B = B
+        # If this relationship is defined futher instances of the invocation of A run B
+        class Replace():
+            def __init__(self, A: Service, B: Service):
+                self.A = A
+                self.B = B
+
 
 
 def listen_for_json():
@@ -123,16 +184,26 @@ if __name__ == '__main__':
     service_tweet3 = '{ "Tweet Type" : "Service","Name" : "distance","Thing ID" : "RaspberryPi","Entity ID" : "Ultrasonic","Space ID" : "MySmartSpace","Vendor" : "","API" : "distance:[NULL]:(Output,int, NULL)","Type" : "","AppCategory" : "","Description" : "Get distance between sensor and facing object in centimeters","Keywords" : "" }'
     # tweet = json_to_tweet(tweet)
     # Service(tweet['Name'], tweet['API'].count(',') // 2, Thing('RaspberryPi', 'MySmartSpace', '192.168.0.67')).exec([])
-    services = tweets_to_services([json_to_tweet(t) for t in listen_for_json()])
-    for s in services:
-        print(str(s))
+    # services = tweets_to_services([json_to_tweet(t) for t in listen_for_json()])
+    with open('services.txt', 'rb') as f:
+        services = pickle.load(f)
+    # for s in services:
+    #     print(str(s))
         # if s.name == 'alarm':
         #     print('Running alarm')
         #     s.exec([])
         # if s.name == 'nightlight':
         #     print('Running nightlight')
         #     s.exec([3])
+        # if s.name == 'distance':
+        #     print('Running distance')
+        #     print(s.exec([]))
+    for s in services:
         if s.name == 'distance':
-            print('Running distance')
-            print(s.exec([]))
+            service_A = s
+        if s.name == 'nightlight':
+            service_B = s
+    
+    Relationship.Cooperative.Extend(service_A, service_B).exec([5])
+
 
