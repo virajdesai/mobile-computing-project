@@ -2,7 +2,8 @@ import tkinter as tk
 import pickle
 from tkinter import ttk
 from utils import *
-
+from tkinter import simpledialog
+import os
 
 available_services = []
 available_things = []
@@ -37,6 +38,9 @@ class DragDropListbox(tk.Listbox):
     def remove(self):
         if self.curIndex != None:
             self.delete(self.curIndex, self.curIndex)
+
+    def getCurrent(self):
+        return self.curIndex
        
 
 class EntryWithPlaceholder(tk.Entry):
@@ -192,11 +196,21 @@ class App(tk.Tk):
         self.output = tk.Text(recipes, state='disabled', width=44, height=20)
         self.output.pack()
 
+        self.app_list = {}
+
+        def save_to_app_list():
+            app_name = simpledialog.askstring("Input", "Saving Project Name", parent=self)
+            if app_name in self.app_list:
+                self.log(f'Project named {app_name} already exists!')
+                return
+            self.app_list[app_name] = self.program.get(0, tk.END)
+            app_box.insert(tk.END, app_name)
+
         #buttons for recipe box
         ttk.Button(recipes, text='Clear', command=self.clear).pack()
         ttk.Button(recipes, text='Remove', command=self.program.remove).pack()
         ttk.Button(recipes, text='Run', command=self.run).pack()
-        ttk.Button(recipes, text='Save').pack()      
+        ttk.Button(recipes, text='Save', command=save_to_app_list).pack()
 
 
         #Create information boxes for each Tab
@@ -207,6 +221,50 @@ class App(tk.Tk):
         for t in available_things:
             ThingInfo(things, t, services, self.program)
         
+
+
+        # APP FRAME
+
+        app_box = DragDropListbox(apps)
+        app_box.pack()
+
+        def activate():
+            cursor = app_box.getCurrent()
+            if cursor == None:
+                return
+            name = app_box.get(cursor, cursor)
+            self.clear()
+            for action in self.app_list[name[0]]:
+                self.program.insert(tk.END, action)
+        ttk.Button(apps, text='Activate', command=activate).pack()
+
+        def save_to_file():
+            cursor = app_box.getCurrent()
+            if cursor == None:
+                return
+            name = app_box.get(cursor, cursor)[0]
+            os.makedirs(os.path.join(os.getcwd(), 'saves/' + name))
+            with open('saves/'+name+'/services', 'wb') as f:
+                pickle.dump(available_services, f)
+            with open('saves/'+name+'/program', 'w') as f:
+                f.write('\n'.join(self.app_list[name]))
+        ttk.Button(apps, text='Save', command=save_to_file).pack()
+
+        def upload():
+            for root, subdirectories, _ in os.walk('./saves'):
+                for proj in subdirectories:
+                    with open(os.path.join(os.getcwd(), 'saves/'+proj+'/services'), 'rb') as f:
+                        available_services = pickle.load(f)
+                    with open(os.path.join(os.getcwd(), 'saves/'+proj+'/program'), 'r') as f:
+                        actions = f.readlines()
+                    self.app_list[proj] = actions
+                    app_box.insert(tk.END, proj)
+
+        ttk.Button(apps, text='Upload', command=upload).pack()
+
+
+
+
         #pos
         RelationshipInfo(relationships, self.program, "Drive")
         RelationshipInfo(relationships, self.program, "Control")
