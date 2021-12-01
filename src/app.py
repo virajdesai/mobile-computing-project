@@ -66,7 +66,7 @@ class EntryWithPlaceholder(tk.Entry):
   
 class ServiceInfo():
     def __init__(self, master, program: DragDropListbox, service: Service):
-        self.where = program
+        self.program = program
         self.service = service
         self.frame = ttk.Frame(master)
         
@@ -84,7 +84,7 @@ class ServiceInfo():
     def add_to_recipe(self):
         inputs = [input.get() for input in self.inputs if input.get().isnumeric()]
         args = '(' + ', '.join(inputs) + ')' if len(inputs) == self.service.argc and len(inputs) != 0 else ''
-        self.where.insert(tk.END, self.service.name.capitalize() + args)
+        self.program.insert(tk.END, self.service.name.capitalize() + args)
 
 
 class ThingInfo():
@@ -100,7 +100,20 @@ class ThingInfo():
     def toggle(self):
         self.enabled = not self.enabled
         print('Checked', self.enabled)
-    
+
+class RelationshipInfo():
+    def __init__(self, master, program: DragDropListbox, name):
+        self.frame = ttk.Frame(master)
+        self.frame.pack()
+        self.name = name
+        self.program = program
+
+        ttk.Label(self.frame, text="Relationship: " + name).pack()
+        ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
+
+    def add_to_recipe(self):
+        self.program.insert(tk.END, self.name, 'Service A', 'Service B')
+
 
 class App(tk.Tk):
     def __init__(self):
@@ -151,46 +164,101 @@ class App(tk.Tk):
         self.output = tk.Text(recipes, state='disabled', width=44, height=20)
         self.output.pack()
 
+        #buttons for recipe box
         ttk.Button(recipes, text='Clear', command=self.clear).pack()
         ttk.Button(recipes, text='Remove', command=self.program.remove).pack()
         ttk.Button(recipes, text='Run', command=self.run).pack()
         ttk.Button(recipes, text='Save').pack()      
 
+
+        #Create information boxes for each Tab
         for s in available_services:
             ServiceInfo(services, self.program, s)
 
         for t in available_things:
             ThingInfo(things, t)
 
+        RelationshipInfo(relationships, self.program, "Relationship: Drive")
+
     def clear(self):
             self.program.delete(0,tk.END)
-            
+
+    def parse_service(self, action: str, services):
+        x = action.find('(')
+        if x > 0:
+            name = action[:x].lower()
+            args = [int(arg) for arg in action[x+1:-1].split(', ')]
+        else:
+            name = action.lower()
+            args = []
+
+        return (services[name], args) if name in services else None
+
+    def log(self, line: str):
+        self.output.configure(state='normal')
+        self.output.insert('end', line)
+        self.output.configure(state='disabled')
+        
 
     def run(self):
-        self.execution = [entry for entry in self.program.get(0, tk.END)]
         self.output.configure(state='normal')
         self.output.delete('1.0', 'end')
         self.output.configure(state='disabled')
 
         services = {s.name:s for s in available_services}
 
-        for action in self.execution:
-            x = action.find('(')
-            if x > 0:
-                name = action[:x].lower()
-                args = [int(arg) for arg in action[x+1:-1].split(', ')]
-            else:
-                name = action.lower()
-                args = []
+        listing = self.program.get(0, tk.END)
+        i = 0
+        while (i < len(listing)):
+            print("Entered wile looop")
+            action = listing[i]
+            print("here + i: " +  str(i))
+            # see Relationship: 
+            if 'Relationship: ' in action:
+                if i+2 >= len(listing):
+                    print('err')
+                    return
+                
+                v = self.parse_service(listing[i+1], services)
+                if v != None:
+                    (service_a, args_a) = v
 
-            print(name, args)
+                v = self.parse_service(listing[i+2], services)
+                if v != None:
+                    (service_b, args_b) = v
+
+                if 'Relationship: Drive' in action:
+                    if len(args_b) != 0: 
+                        self.log('Service B cannot take input with "Drives" relationship')
+                        return
+                    Relationship.Cooperative.Drive(service_a, service_b).exec(args_a)
+
+                i += 2
+            else:
+                v = self.parse_service(action, services)
+                if v != None:
+                    (service, args) = v
+                result = service.exec(args)
+                if service.has_output:
+                    self.log(result)
+            
+            i += 1
+                
+
+            
+            
+            
+            # get the name of the RElationship
+            #construc the R
+            # skip over two lines in the listbox and grab those two as ser a and b
+            # exec this line:
+            
+
     
-            if name in services:
-                result = services[name].exec(args)
-                if services[name].has_output:
-                    self.output.configure(state='normal')
-                    self.output.insert('end', result)
-                    self.output.configure(state='disabled')
+            
+
+        
+
                     
             
        

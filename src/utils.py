@@ -87,8 +87,15 @@ class Relationship():
                 self.B = B
 
             def exec(self, A_input, B_input):
-                self.A.exec(A_input)
-                return self.B.exec(B_input)
+                if self.A.has_output:
+                    result = self.A.exec(A_input)
+                    if result == 0:
+                        return self.B.exec(B_input)
+                    else:
+                        return result
+                else:
+                    self.A.exec(A_input)
+                    return self.B.exec(B_input)
 
         class Extend():
             def __init__(self, A: Service, B: Service):
@@ -201,9 +208,9 @@ if __name__ == '__main__':
     for s in services:
         if s.name == 'distance':
             service_A = s
-        if s.name == 'nightlight':
+        if s.name == 'on':
             service_B = s
     
-    Relationship.Cooperative.Extend(service_A, service_B).exec([5])
+    Relationship.Cooperative.Control(service_A, service_B).exec([], [], lambda x: int(x) > 10)
 
 
