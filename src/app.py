@@ -73,7 +73,7 @@ class ServiceInfo():
     def __init__(self, master, program: DragDropListbox, service: Service):
         self.program = program
         self.service = service
-        self.frame = ttk.Frame(master)
+        self.frame = ttk.Frame(master, padding=[5,5,5,5], relief="groove")
         
         ttk.Label(self.frame, text='Service: ' + service.name.capitalize()).pack()
         ttk.Label(self.frame, text='Provider: ' + service.thing.id).pack()
@@ -94,7 +94,7 @@ class ServiceInfo():
 
 class ThingInfo():
     def __init__(self, master, thing: Thing, service_frame, program: DragDropListbox):
-        self.frame = ttk.Frame(master)
+        self.frame = ttk.Frame(master, padding=[5,10,5,10], relief="groove")
         self.frame.pack()
         self.enabled = False
         self.name = thing.id
@@ -127,18 +127,21 @@ class ThingInfo():
 
 class RelationshipInfo():
     def __init__(self, master, program: DragDropListbox, name):
-        self.frame = ttk.Frame(master)
+        self.frame = ttk.Frame(master, padding=[5,10,5,10], relief="groove")
         self.frame.pack()
         self.name = name
         self.program = program
 
         ttk.Label(self.frame, text=name).pack()
-        ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
 
         self.input = tk.StringVar()
 
         if self.name == 'Control':
             EntryWithPlaceholder(self.frame, f'Condition (ex. x > 30)', textvariable=self.input).pack(fill='x', expand=True) 
+
+        ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
+
+       
 
     def add_to_recipe(self):
         if self.name == 'Control':
@@ -187,14 +190,16 @@ class App(tk.Tk):
 
         self.program = DragDropListbox(recipes)
         self.program.pack()
-        self.program.place(bordermode=tk.OUTSIDE, anchor=tk.NW, height=500, width=250, rely=0.05, relx=0.0025)
+        self.program.place(bordermode=tk.OUTSIDE, anchor=tk.NW, height=500, width=250, rely=0.05, relx=0.025)
         self.execution = []
 
         # Adding some buttons to the recipe view and a title
-        ttk.Label(recipes, text='Recipes').pack()
-
+        ttk.Label(recipes, text='Recipes').pack(anchor='w', pady=6, padx=120)
+        
+        ttk.Label(recipes, text='Console Log').pack(anchor='e', padx=240, pady=6)
+        
         self.output = tk.Text(recipes, state='disabled', width=44, height=20)
-        self.output.pack()
+        self.output.pack(anchor='e', padx = 100)
 
         self.app_list = {}
 
@@ -207,10 +212,10 @@ class App(tk.Tk):
             app_box.insert(tk.END, app_name)
 
         #buttons for recipe box
-        ttk.Button(recipes, text='Clear', command=self.clear).pack()
-        ttk.Button(recipes, text='Remove', command=self.program.remove).pack()
-        ttk.Button(recipes, text='Run', command=self.run).pack()
-        ttk.Button(recipes, text='Save', command=save_to_app_list).pack()
+        ttk.Button(recipes, text='Clear', command=self.clear).pack(anchor='e', padx = 240, pady=6)
+        ttk.Button(recipes, text='Remove', command=self.program.remove).pack(anchor='e', padx = 240, pady=6)
+        ttk.Button(recipes, text='Run', command=self.run).pack(anchor='e', padx = 240, pady=6)
+        ttk.Button(recipes, text='Save', command=save_to_app_list).pack(anchor='e', padx = 240, pady=6)
 
 
         #Create information boxes for each Tab
