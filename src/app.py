@@ -38,14 +38,12 @@ class DragDropListbox(Listbox):
   
 class ServiceButton():
     def __init__(self, container, where: DragDropListbox, name):
-        self.button = ttk.Button(container, text='Add Service', 
-                   command=lambda:where.insert(0, name)).pack()
-    #Change TODO
-class ServiceInputs():
-    def __init__(self, container, where: DragDropListbox, name):
         inputs = tk.StringVar()
-        textboxinput = ttk.Entry(container, textvariable=inputs)
-        textboxinput.pack(fill='x', expand = True)  
+        textboxtinput = ttk.Entry(container, textvariable=inputs)
+        textboxtinput.pack(fill='x', expand=True)
+        self.button = ttk.Button(container, text='Add Service', 
+                   command=lambda:where.insert(0, name + " " + inputs.get())).pack()
+    #Change TODO
 
 class App(tk.Tk):
     def __init__(self):
@@ -148,7 +146,6 @@ class App(tk.Tk):
             ttk.Label(services, text='Name: ' + s.name).pack()
             ttk.Label(services, text='Thing: ' + s.thing.id).pack()
             ttk.Label(services, text='Smart Space: ' + s.thing.space).pack()
-            ServiceInputs(services, d, s.name)
             ServiceButton(services, d, s.name)
             
        
