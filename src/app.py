@@ -4,6 +4,7 @@ from tkinter import ttk
 from utils import *
 from tkinter import simpledialog
 import os
+import shutil
 
 available_services = []
 available_things = []
@@ -199,7 +200,7 @@ class App(tk.Tk):
         self.app_list = {}
 
         def save_to_app_list():
-            app_name = simpledialog.askstring("Input", "Saving Project Name", parent=self)
+            app_name = simpledialog.askstring("Input", "Application Name", parent=self)
             if app_name in self.app_list:
                 self.log(f'Project named {app_name} already exists!')
                 return
@@ -210,7 +211,7 @@ class App(tk.Tk):
         ttk.Button(recipes, text='Clear', command=self.clear).pack()
         ttk.Button(recipes, text='Remove', command=self.program.remove).pack()
         ttk.Button(recipes, text='Run', command=self.run).pack()
-        ttk.Button(recipes, text='Save', command=save_to_app_list).pack()
+        ttk.Button(recipes, text='Build', command=save_to_app_list).pack()
 
 
         #Create information boxes for each Tab
@@ -236,31 +237,53 @@ class App(tk.Tk):
             self.clear()
             for action in self.app_list[name[0]]:
                 self.program.insert(tk.END, action)
-        ttk.Button(apps, text='Activate', command=activate).pack()
+        ttk.Button(apps, text='Load', command=activate).pack()
 
         def save_to_file():
             cursor = app_box.getCurrent()
             if cursor == None:
                 return
             name = app_box.get(cursor, cursor)[0]
-            os.makedirs(os.path.join(os.getcwd(), 'saves/' + name))
+            try:
+                os.makedirs(os.path.join(os.getcwd(), 'saves/' + name))
+            except:
+                self.log(f'Updating IoT Application {name}')
             with open('saves/'+name+'/services', 'wb') as f:
                 pickle.dump(available_services, f)
             with open('saves/'+name+'/program', 'w') as f:
                 f.write('\n'.join(self.app_list[name]))
+            self.log(f'Saved {name} to {os.getcwd()}/saves/{name}.')
         ttk.Button(apps, text='Save', command=save_to_file).pack()
 
+
+        def delete():
+            cursor = app_box.getCurrent()
+            if cursor == None:
+                return
+            name = app_box.get(cursor, cursor)[0]
+            self.app_list.pop(name)
+            app_box.delete(cursor)
+            try:
+                shutil.rmtree('./saves/' + name)
+                self.log(f'Removed {name} from saves.')
+            except:
+                self.log(f'{name} was removed from App Manager List')
+                
+
+        ttk.Button(apps, text='Delete', command=delete).pack()
+
         def upload():
-            for root, subdirectories, _ in os.walk('./saves'):
+            for _, subdirectories, _ in os.walk('./saves'):
                 for proj in subdirectories:
                     with open(os.path.join(os.getcwd(), 'saves/'+proj+'/services'), 'rb') as f:
-                        available_services = pickle.load(f)
+                        for service in pickle.load(f):
+                            available_services.append(service)
                     with open(os.path.join(os.getcwd(), 'saves/'+proj+'/program'), 'r') as f:
                         actions = f.readlines()
                     self.app_list[proj] = actions
                     app_box.insert(tk.END, proj)
 
-        ttk.Button(apps, text='Upload', command=upload).pack()
+        upload()
 
 
 
@@ -296,7 +319,7 @@ class App(tk.Tk):
 
     def log(self, line: str):
         self.output.configure(state='normal')
-        self.output.insert('end', line)
+        self.output.insert('end', line+'\n')
         self.output.configure(state='disabled')
         
 
