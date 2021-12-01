@@ -108,11 +108,11 @@ class RelationshipInfo():
         self.name = name
         self.program = program
 
-        ttk.Label(self.frame, text="Relationship: " + name).pack()
+        ttk.Label(self.frame, text=name).pack()
         ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
 
     def add_to_recipe(self):
-        self.program.insert(tk.END, self.name, 'Service A', 'Service B')
+        self.program.insert(tk.END, "Relationship: " + self.name, '   Service A', '   Service B')
 
 
 class App(tk.Tk):
@@ -177,8 +177,19 @@ class App(tk.Tk):
 
         for t in available_things:
             ThingInfo(things, t)
+        
+        #pos
+        RelationshipInfo(relationships, self.program, "Drive")
+        RelationshipInfo(relationships, self.program, "Control")
+        RelationshipInfo(relationships, self.program, "Support")
+        RelationshipInfo(relationships, self.program, "Extend")
 
-        RelationshipInfo(relationships, self.program, "Relationship: Drive")
+        #comp
+        RelationshipInfo(relationships, self.program, "Interfere")
+        RelationshipInfo(relationships, self.program, "Contest")
+        RelationshipInfo(relationships, self.program, "Refine")
+        RelationshipInfo(relationships, self.program, "Subsume")
+
 
     def clear(self):
             self.program.delete(0,tk.END)
@@ -206,6 +217,7 @@ class App(tk.Tk):
         self.output.configure(state='disabled')
 
         services = {s.name:s for s in available_services}
+        blacklist = []
 
         listing = self.program.get(0, tk.END)
         i = 0
@@ -227,17 +239,45 @@ class App(tk.Tk):
                 if v != None:
                     (service_b, args_b) = v
 
+
+                #Cooperative
                 if 'Relationship: Drive' in action:
                     if len(args_b) != 0: 
                         self.log('Service B cannot take input with "Drives" relationship')
                         return
                     Relationship.Cooperative.Drive(service_a, service_b).exec(args_a)
 
+                if 'Relationship: Support' in action:
+                    Relationship.Cooperative.Support(service_a, service_b).exec(args_a, args_b)
+
+                if 'Relationship: Extend' in action:
+                    
+                    Relationship.Cooperative.Extend(service_a, service_b).exec(args_a+args_b)
+                
+                
+                #Competitive
+                if 'Relationship: Interfere' in action or 'Relationship: Contest' in action:
+                    blacklist.append(service_a.name)
+                    blacklist.append(service_b.name)
+
+                if 'Relationship: Refine' in action:
+                    services[service_b.name] = services[service_a.name]
+                
+                if 'Relationship: Subsume' in action:
+                    services[service_a.name] = services[service_b.name]
+                
                 i += 2
             else:
                 v = self.parse_service(action, services)
                 if v != None:
                     (service, args) = v
+                if service.name in blacklist:
+                    if len(blacklist) == 2:
+                        blacklist.remove(service.name)
+                    elif  len(blacklist) == 1:
+                        self.log(f'Service {service.name} is interfered or contested with.')
+                        return
+                    
                 result = service.exec(args)
                 if service.has_output:
                     self.log(result)
