@@ -1,21 +1,18 @@
 import tkinter as tk
 import pickle
-from tkinter import Listbox, ttk
-from tkinter import dnd
-from tkinter.constants import NW, OUTSIDE
+from tkinter import ttk
 from utils import *
 
 
 available_services = []
 available_things = []
 
-recLine = []
 
-class DragDropListbox(Listbox):
-    """ A Tkinter listbox with drag'n'drop reordering of entries. """
+
+class DragDropListbox(tk.Listbox):
     def __init__(self, master, **kw):
         kw['selectmode'] = tk.SINGLE
-        Listbox.__init__(self, master, kw)
+        tk.Listbox.__init__(self, master, kw)
         self.bind('<Button-1>', self.setCurrent)
         self.bind('<B1-Motion>', self.shiftSelection)
         self.curIndex = None
@@ -35,15 +32,71 @@ class DragDropListbox(Listbox):
             self.delete(i)
             self.insert(i-1, x)
             self.curIndex = i
+
+class EntryWithPlaceholder(tk.Entry):
+    def __init__(self, master, placeholder="PLACEHOLDER", **kw):
+        super().__init__(master, kw)
+
+        self.placeholder = placeholder
+        self.placeholder_color = 'grey'
+        self.default_fg_color = self['fg']
+
+        self.bind("<FocusIn>", self.foc_in)
+        self.bind("<FocusOut>", self.foc_out)
+
+        self.put_placeholder()
+
+    def put_placeholder(self):
+        self.insert(0, self.placeholder)
+        self['fg'] = self.placeholder_color
+
+    def foc_in(self, *args):
+        if self['fg'] == self.placeholder_color:
+            self.delete('0', 'end')
+            self['fg'] = self.default_fg_color
+
+    def foc_out(self, *args):
+        if not self.get():
+            self.put_placeholder()
   
-class ServiceButton():
-    def __init__(self, container, where: DragDropListbox, name):
-        inputs = tk.StringVar()
-        textboxtinput = ttk.Entry(container, textvariable=inputs)
-        textboxtinput.pack(fill='x', expand=True)
-        self.button = ttk.Button(container, text='Add Service', 
-                   command=lambda:where.insert(0, name + " " + inputs.get())).pack()
-    #Change TODO
+class ServiceInfo():
+    def __init__(self, master, program: DragDropListbox, service: Service):
+        self.where = program
+        self.service = service
+        self.frame = ttk.Frame(master)
+        
+        ttk.Label(self.frame, text='Service: ' + service.name.capitalize()).pack()
+        ttk.Label(self.frame, text='Provider: ' + service.thing.id).pack()
+        self.frame.pack()
+
+        self.inputs = [tk.StringVar() for _ in range(service.argc)]
+
+        for i, input in enumerate(self.inputs):
+            EntryWithPlaceholder(self.frame, f'Input #{i+1}', textvariable=input).pack(fill='x', expand=True) 
+        
+        
+        ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
+
+    def add_to_recipe(self):
+        inputs = [input.get() for input in self.inputs if input.get().isnumeric()]
+        args = '(' + ', '.join(inputs) + ')' if len(inputs) == self.service.argc and len(inputs) != 0 else ''
+        self.where.insert(tk.END, self.service.name.capitalize() + args)
+
+
+class ThingInfo():
+    def __init__(self, master, thing: Thing):
+        self.frame = ttk.Frame(master)
+        self.frame.pack()
+        self.enabled = False
+        ttk.Label(self.frame, text='Thing: ' + thing.id).pack()
+        ttk.Label(self.frame, text='Space: ' + thing.space).pack()
+        ttk.Label(self.frame, text='IP Adress: ' + thing.address).pack()
+        ttk.Checkbutton(master, text='Show Services', variable=self.enabled, onvalue=1, offvalue=0, command=self.toggle).pack()
+
+    def toggle(self):
+        self.enabled = not self.enabled
+        print('Checked', self.enabled)
+    
 
 class App(tk.Tk):
     def __init__(self):
@@ -52,9 +105,6 @@ class App(tk.Tk):
         # configure the root window
         self.title('Atlas IoT IDE')
         self.geometry('1200x600')
-        
-        
-
 
         # splits the window into two columns with the second one
         # being twice the size of the first given by the weight
@@ -86,67 +136,58 @@ class App(tk.Tk):
         recipes = tk.Frame(self, bg='dark grey')
         recipes.grid(row=0, column=1, sticky=tk.NSEW)
 
-        d = DragDropListbox(recipes)
-        d.pack()
-        d.place(bordermode=OUTSIDE, anchor=NW, height=500, width=250, rely=0.05, relx=0.0025)
-
-        #Textbox for service arguments
-        inputtxt = tk.Text(recipes, height=5, width=20).pack(side=tk.LEFT)
-        txtRules = tk.Label(recipes, text="Comma for args, SemiColon for func", fg="grey").pack(side=tk.LEFT)
+        self.program = DragDropListbox(recipes)
+        self.program.pack()
+        self.program.place(bordermode=tk.OUTSIDE, anchor=tk.NW, height=500, width=250, rely=0.05, relx=0.0025)
+        self.execution = []
 
         # Adding some buttons to the recipe view and a title
         ttk.Label(recipes, text ="Recipes: This is where the services are dragged and arranged").pack()
-        
 
-        output = tk.Text(recipes, state='disabled', width=44, height=20)
-        output.pack()
-        
-        def clear():
-            d.delete(0,tk.END)
-            recLine.clear()
-            output.configure(state='normal')
-            output.delete('1.0', 'end')
-            output.configure(state='disabled')
+        self.output = tk.Text(recipes, state='disabled', width=44, height=20)
+        self.output.pack()
 
-        clr = ttk.Button(recipes, text='Clear', command=clear)
-        clr.pack()
-        save = ttk.Button(recipes, text='Save')
-        save.pack()
-        
-        
-        def run():
-            for entry in d.get(0, tk.END):
-                recLine.append(entry)
+        ttk.Button(recipes, text='Clear', command=self.clear).pack()
+        ttk.Button(recipes, text='Save').pack()      
+        ttk.Button(recipes, text='Run', command=self.run).pack()
 
-            for s in recLine:
-                for sobj in available_services:
-                    if s == sobj.name:
-                        result = sobj.exec([])
-                        if sobj.has_output:
-                            output.configure(state='normal')
-                            output.insert('end', result)
-                            output.configure(state='disabled')
-                        break
-                
-        ttk.Button(recipes, text='Run', command=run).pack(side=tk.RIGHT)
-        
-        # def run():
-        #     #implement run function
-        # ttk.Button(recipies, text='Run', command=clear).pack(side=tk.RIGHT)
-
-        
-
-
-        # Buttons and descriptions for services that can be pressed to add them to the 
-        # recipe area.
-        
-        print(len(available_things), len(available_services))
         for s in available_services:
-            print(s.name)
-            ttk.Label(services, text='Name: ' + s.name).pack()
-            ttk.Label(services, text='Thing: ' + s.thing.id).pack()
-            ttk.Label(services, text='Smart Space: ' + s.thing.space).pack()
-            ServiceButton(services, d, s.name)
+            ServiceInfo(services, self.program, s)
+
+        for t in available_things:
+            ThingInfo(things, t)
+
+    def clear(self):
+            self.program.delete(0,tk.END)
+            self.execution.clear()
+            self.output.configure(state='normal')
+            self.output.delete('1.0', 'end')
+            self.output.configure(state='disabled')
+
+    def run(self):
+        for entry in self.program.get(0, tk.END):
+            self.execution.append(entry)
+
+        services = {s.name:s for s in available_services}
+
+        for action in self.execution:
+            x = action.find('(')
+            if x > 0:
+                name = action[:x].lower()
+                args = [int(arg) for arg in action[x+1:-1].split(', ')]
+            else:
+                name = action.lower()
+                args = []
+
+            print(name, args)
+    
+            if name in services:
+                result = services[name].exec(args)
+                if services[name].has_output:
+                    self.output.configure(state='normal')
+                    self.output.insert('end', result)
+                    self.output.configure(state='disabled')
+                    
             
        
         
