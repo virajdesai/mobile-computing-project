@@ -7,7 +7,7 @@ from utils import *
 available_services = []
 available_things = []
 
-
+execute = []
 
 class DragDropListbox(tk.Listbox):
     def __init__(self, master, **kw):
@@ -32,6 +32,11 @@ class DragDropListbox(tk.Listbox):
             self.delete(i)
             self.insert(i-1, x)
             self.curIndex = i
+
+    def remove(self):
+        if self.curIndex != None:
+            self.delete(self.curIndex, self.curIndex)
+       
 
 class EntryWithPlaceholder(tk.Entry):
     def __init__(self, master, placeholder="PLACEHOLDER", **kw):
@@ -73,7 +78,6 @@ class ServiceInfo():
 
         for i, input in enumerate(self.inputs):
             EntryWithPlaceholder(self.frame, f'Input #{i+1}', textvariable=input).pack(fill='x', expand=True) 
-        
         
         ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
 
@@ -142,14 +146,15 @@ class App(tk.Tk):
         self.execution = []
 
         # Adding some buttons to the recipe view and a title
-        ttk.Label(recipes, text ="Recipes: This is where the services are dragged and arranged").pack()
+        ttk.Label(recipes, text='Recipes').pack()
 
         self.output = tk.Text(recipes, state='disabled', width=44, height=20)
         self.output.pack()
 
         ttk.Button(recipes, text='Clear', command=self.clear).pack()
-        ttk.Button(recipes, text='Save').pack()      
+        ttk.Button(recipes, text='Remove', command=self.program.remove).pack()
         ttk.Button(recipes, text='Run', command=self.run).pack()
+        ttk.Button(recipes, text='Save').pack()      
 
         for s in available_services:
             ServiceInfo(services, self.program, s)
@@ -159,14 +164,13 @@ class App(tk.Tk):
 
     def clear(self):
             self.program.delete(0,tk.END)
-            self.execution.clear()
-            self.output.configure(state='normal')
-            self.output.delete('1.0', 'end')
-            self.output.configure(state='disabled')
+            
 
     def run(self):
-        for entry in self.program.get(0, tk.END):
-            self.execution.append(entry)
+        self.execution = [entry for entry in self.program.get(0, tk.END)]
+        self.output.configure(state='normal')
+        self.output.delete('1.0', 'end')
+        self.output.configure(state='disabled')
 
         services = {s.name:s for s in available_services}
 
