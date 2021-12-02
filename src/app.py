@@ -4,6 +4,7 @@ from tkinter import ttk
 from tkinter.constants import ANCHOR
 from utils import *
 from tkinter import simpledialog
+from tkinter import messagebox
 import os
 import shutil
 import time
@@ -323,7 +324,8 @@ class App(tk.Tk):
                 for proj in subdirectories:
                     with open(os.path.join(os.getcwd(), 'saves/'+proj+'/services'), 'rb') as f:
                         for service in pickle.load(f):
-                            available_services.append(service)
+                            if service not in available_services:
+                                available_services.append(service) 
                     with open(os.path.join(os.getcwd(), 'saves/'+proj+'/program'), 'r') as f:
                         actions = f.readlines()
                     self.app_list[proj] = actions
@@ -354,11 +356,12 @@ class App(tk.Tk):
 
     def parse_service(self, action: str, services):
         x = action.find('(')
+        action = action.strip()
         if x > 0:
             name = action[:x].lower()
             args = [int(arg) for arg in action[x+1:-1].split(', ')]
         else:
-            name = action.lower().strip()
+            name = action.lower()
             args = []
 
         return (services[name], args) if name in services else None
@@ -379,6 +382,7 @@ class App(tk.Tk):
                 self.log('Service B cannot take input with "Drives" relationship')
                 error = 1
                 return
+            print('drives')
             return Relationship.Cooperative.Drive(service_a, service_b).exec(args_a)
 
         if 'Relationship: Support' in action:
@@ -462,7 +466,7 @@ class App(tk.Tk):
             elif 'IF THEN' in action:
                 result = None
                 # Evalutaing conditional relationship/service
-                print(action)
+                print('Seen if then')
                 if 'Relationship: ' in listing[i+1]:
                     print('condition is relationship')
                     result = self.parse_relationship(listing, i, services)
@@ -525,15 +529,15 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    # tweets = [json_to_tweet(t) for t in listen_for_json()]
-    # available_things = tweets_to_things(tweets)
-    # available_services = tweets_to_services(tweets)
+    tweets = [json_to_tweet(t) for t in listen_for_json()]
+    available_things = tweets_to_things(tweets)
+    available_services = tweets_to_services(tweets)
 
-    with open('services.txt', 'rb') as f:
-        available_services = pickle.load(f)
+    # with open('services.txt', 'rb') as f:
+    #     available_services = pickle.load(f)
 
-    with open('things.txt', 'rb') as f:
-        available_things = pickle.load(f)
+    # with open('things.txt', 'rb') as f:
+    #     available_things = pickle.load(f)
     
     app = App()
     app.mainloop()

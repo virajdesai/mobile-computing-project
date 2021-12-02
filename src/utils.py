@@ -24,7 +24,7 @@ class Service():
 
     def exec(self, inputs):
         if len(inputs) != self.argc:
-            print(f'Incorrect number of integer arguments: expected {self.argc}, recieved {len(inputs)}')
+            print(f'Incorrect number of arguments for {self.name}: expected {self.argc}, recieved {len(inputs)}')
             return
 
         try:
@@ -180,7 +180,7 @@ def tweets_to_services(tweets: list):
 
 
 def tweets_to_things(tweets: list):
-    return [Thing(t['Thing ID'], t['Space ID'], '192.168.0.67') 
+    return [Thing(t['Thing ID'], t['Space ID'], '192.168.0.67' if t['Thing ID'] == 'RaspberryPi' else '192.168.0.180') 
            for t in filter(lambda x: x['Tweet Type'] == 'Identity_Language', tweets)]
 
 
@@ -208,9 +208,9 @@ if __name__ == '__main__':
     for s in services:
         if s.name == 'distance':
             service_A = s
-        if s.name == 'on':
+        if s.name == 'alarm':
             service_B = s
     
-    Relationship.Cooperative.Control(service_A, service_B).exec([], [], lambda x: int(x) > 10)
+    Relationship.Cooperative.Control(service_A, service_B).exec([], [], lambda x: int(x) > 100)
 
 
