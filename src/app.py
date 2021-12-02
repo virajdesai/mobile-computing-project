@@ -550,15 +550,15 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    # tweets = [json_to_tweet(t) for t in listen_for_json()]
-    # available_things = tweets_to_things(tweets)
-    # available_services = tweets_to_services(tweets)
+    tweets = [json_to_tweet(t) for t in listen_for_json()]
+    available_things = tweets_to_things(tweets)
+    available_services = tweets_to_services(tweets)
 
-    with open('services.txt', 'rb') as f:
-        available_services = pickle.load(f)
+    # with open('services.txt', 'rb') as f:
+    #     available_services = pickle.load(f)
 
-    with open('things.txt', 'rb') as f:
-        available_things = pickle.load(f)
+    # with open('things.txt', 'rb') as f:
+    #     available_things = pickle.load(f)
     
     app = App()
     app.mainloop()
