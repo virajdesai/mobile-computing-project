@@ -472,23 +472,9 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    
-    def task():
-        bar.start()
-        tweets = [json_to_tweet(t) for t in listen_for_json()]
-        available_things = tweets_to_things(tweets)
-        available_services = tweets_to_services(tweets)
-        bar.stop()
-        root.destroy()
-    
-    root = tk.Tk()
-    root.title("Loading")
-
-    bar = ttk.Progressbar(root, mode='indeterminate')
-    bar.pack()
-
-    root.after(2000, task)
-    
+    # tweets = [json_to_tweet(t) for t in listen_for_json()]
+    # available_things = tweets_to_things(tweets)
+    # available_services = tweets_to_services(tweets)
 
     with open('services.txt', 'rb') as f:
         available_services = pickle.load(f)
