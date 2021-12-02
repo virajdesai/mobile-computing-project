@@ -213,18 +213,11 @@ class App(tk.Tk):
             app_box.insert(tk.END, app_name)
 
         #buttons for recipe box
-<<<<<<< HEAD
         
         ttk.Button(recipes, text='Clear', command=self.clear).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Remove', command=self.program.remove).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Run', command=self.run).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Build', command=save_to_app_list).pack(anchor='e', padx = 240, pady=6)
-=======
-        ttk.Button(recipes, text='Clear', command=self.clear).pack(anchor='e', padx = 240, pady=6)
-        ttk.Button(recipes, text='Remove', command=self.program.remove).pack(anchor='e', padx = 240, pady=6)
-        ttk.Button(recipes, text='Run', command=self.run).pack(anchor='e', padx = 240, pady=6)
-        ttk.Button(recipes, text='Save', command=save_to_app_list).pack(anchor='e', padx = 240, pady=6)
->>>>>>> 0692b89f0465c2a8dbd80d894065d10008567dcf
 
 
         #Create information boxes for each Tab
