@@ -1,6 +1,7 @@
 import tkinter as tk
 import pickle
 from tkinter import ttk
+from tkinter.constants import ANCHOR
 from utils import *
 from tkinter import simpledialog
 import os
@@ -127,13 +128,14 @@ class ThingInfo():
             
 
 class RelationshipInfo():
-    def __init__(self, master, program: DragDropListbox, name):
+    def __init__(self, master, program: DragDropListbox, name, description):
         self.frame = ttk.Frame(master, padding=[5,10,5,10], relief="groove")
         self.frame.pack()
         self.name = name
         self.program = program
+        self.description = description
 
-        ttk.Label(self.frame, text=name).pack()
+        ttk.Label(self.frame, text=name + description).pack()
 
         self.input = tk.StringVar()
 
@@ -178,6 +180,8 @@ class App(tk.Tk):
         services = ttk.Frame(info)
         relationships = ttk.Frame(info)
         apps = ttk.Frame(info)
+
+    
 
         # Adding the frames to the tab group
         info.add(things, text='Things')
@@ -234,7 +238,7 @@ class App(tk.Tk):
 
         app_box = DragDropListbox(apps)
         app_box.pack()
-
+        
         def activate():
             cursor = app_box.getCurrent()
             if cursor == None:
@@ -260,6 +264,9 @@ class App(tk.Tk):
                 f.write('\n'.join(self.app_list[name]))
             self.log(f'Saved {name} to {os.getcwd()}/saves/{name}.')
         ttk.Button(apps, text='Save', command=save_to_file).pack()
+
+
+        
 
 
         def delete():
@@ -295,16 +302,16 @@ class App(tk.Tk):
 
 
         #pos
-        RelationshipInfo(relationships, self.program, "Drive")
-        RelationshipInfo(relationships, self.program, "Control")
-        RelationshipInfo(relationships, self.program, "Support")
-        RelationshipInfo(relationships, self.program, "Extend")
+        RelationshipInfo(relationships, self.program, "Drive", ": Output A-> B")
+        RelationshipInfo(relationships, self.program, "Control", ": Run B if C is true, given A")
+        RelationshipInfo(relationships, self.program, "Support", ": Enable A to precede B")
+        RelationshipInfo(relationships, self.program, "Extend", ": A + B = C")
 
         #comp
-        RelationshipInfo(relationships, self.program, "Interfere")
-        RelationshipInfo(relationships, self.program, "Contest")
-        RelationshipInfo(relationships, self.program, "Refine")
-        RelationshipInfo(relationships, self.program, "Subsume")
+        RelationshipInfo(relationships, self.program, "Interfere", ": Insecure to Coexist")
+        RelationshipInfo(relationships, self.program, "Contest", ": Mutually Exclusive Solutions")
+        RelationshipInfo(relationships, self.program, "Refine", ": Service A more specific than B")
+        RelationshipInfo(relationships, self.program, "Subsume", ": Service A subset of B")
 
 
     
@@ -447,9 +454,23 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    # tweets = [json_to_tweet(t) for t in listen_for_json()]
-    # available_things = tweets_to_things(tweets)
-    # available_services = tweets_to_services(tweets)
+    
+    def task():
+        bar.start()
+        tweets = [json_to_tweet(t) for t in listen_for_json()]
+        available_things = tweets_to_things(tweets)
+        available_services = tweets_to_services(tweets)
+        bar.stop()
+        root.destroy()
+    
+    root = tk.Tk()
+    root.title("Loading")
+
+    bar = ttk.Progressbar(root, mode='indeterminate')
+    bar.pack()
+
+    root.after(2000, task)
+    
 
     with open('services.txt', 'rb') as f:
         available_services = pickle.load(f)
