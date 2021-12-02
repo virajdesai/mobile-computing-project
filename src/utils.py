@@ -148,7 +148,8 @@ def listen_for_json():
 
     while True:
         data, _ = s.recvfrom(1024)
-        tweets.append(data)
+        if data not in tweets:
+            tweets.append(data)
         print('time since last ', time.time() - recv_time)
         if time.time() - recv_time > 5:
             break

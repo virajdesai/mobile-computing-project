@@ -17,6 +17,10 @@ execute = []
 
 global error; error = 0
 
+# Listbox that allows users to drag and drop elements
+# this mean that users can rearrage program execution on the fly
+# This approach seems to work better as the unconstrained drag and
+# drop is not a strong suit of the tkinter library
 class DragDropListbox(tk.Listbox):
     def __init__(self, master, **kw):
         kw['selectmode'] = tk.SINGLE
@@ -25,9 +29,12 @@ class DragDropListbox(tk.Listbox):
         self.bind('<B1-Motion>', self.shiftSelection)
         self.curIndex = None
 
+    # Updates the cursor
     def setCurrent(self, event):
         self.curIndex = self.nearest(event.y)
 
+    # Shifts elements by deleting and inserting based
+    # on the position of the cursor and event bindings
     def shiftSelection(self, event):
         i = self.nearest(event.y)
         if i < self.curIndex:
@@ -48,7 +55,10 @@ class DragDropListbox(tk.Listbox):
     def getCurrent(self):
         return self.curIndex
        
-
+# This class extends the functionality of the tkinter entry widget
+# by adding a light colored placeholder text in input boxes for 
+# such that the user can know what the boxes are for
+# In future: get the input names from tweets and display
 class EntryWithPlaceholder(tk.Entry):
     def __init__(self, master, placeholder="PLACEHOLDER", **kw):
         super().__init__(master, kw)
@@ -74,7 +84,9 @@ class EntryWithPlaceholder(tk.Entry):
     def foc_out(self, *args):
         if not self.get():
             self.put_placeholder()
-  
+
+
+# Makes a box for a service to be placed on the services tab
 class ServiceInfo():
     def __init__(self, master, program: DragDropListbox, service: Service):
         self.program = program
@@ -87,50 +99,54 @@ class ServiceInfo():
 
         self.inputs = [tk.StringVar() for _ in range(service.argc)]
 
+        # Make input boxes for each input that the Thing service offers (argc)
         for i, input in enumerate(self.inputs):
             EntryWithPlaceholder(self.frame, f'Input #{i+1}', textvariable=input).pack(fill='x', expand=True) 
         
         ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
 
+    # Adds a service to the program listing and handles input to add to listing as well
     def add_to_recipe(self):
         inputs = [input.get() for input in self.inputs if input.get().isnumeric()]
         args = '(' + ', '.join(inputs) + ')' if len(inputs) == self.service.argc and len(inputs) != 0 else ''
         self.program.insert(tk.END, self.service.name.capitalize() + args)
 
-
+# Makes a box for each thing with related information displayed
 class ThingInfo():
-    def __init__(self, master, thing: Thing, service_frame, program: DragDropListbox):
+    def __init__(self, master, thing: Thing, service_frame, program: DragDropListbox, id):
         self.frame = ttk.Frame(master, padding=[5,10,5,10], relief="groove")
         self.frame.pack()
-        self.enabled = False
         self.name = thing.id
         self.service_frame = service_frame
         self.program = program
-
+        self.status = tk.IntVar()
         ttk.Label(self.frame, text='Thing: ' + thing.id).pack()
         ttk.Label(self.frame, text='Space: ' + thing.space).pack()
         ttk.Label(self.frame, text='IP Adress: ' + thing.address).pack()
-        ttk.Checkbutton(master, text='Show Services', variable=self.enabled, onvalue=1, offvalue=0, command=self.toggle).pack()
+        ttk.Checkbutton(master, text='Show Services', variable=self.status, onvalue=1, offvalue=0, command=self.toggle).pack()
 
     def clear_frame(self):
         for widget in self.service_frame.winfo_children():
             widget.destroy()
     
+    # Allows for filter of services based on thing by updating enabled services list
     def toggle(self):
-        self.enabled = not self.enabled
         self.clear_frame()
-        if self.enabled:
+        print(len(available_services))
+        if self.status.get() == 1:
             for service in available_services:
                 if service.thing.id == self.name:
                     enabled_services.append(service)
             for s in enabled_services:
                 ServiceInfo(self.service_frame, self.program, s)
         else:
+            print('not checked')
             for service in available_services:
                 if service.thing.id == self.name:
                     enabled_services.remove(service)
             
 
+# Displays our relationships
 class RelationshipInfo():
     def __init__(self, master, program: DragDropListbox, name, description):
         self.frame = ttk.Frame(master, padding=[5,10,5,10], relief="groove")
@@ -141,8 +157,10 @@ class RelationshipInfo():
 
         ttk.Label(self.frame, text=name + description).pack()
 
-        self.input = tk.StringVar()
+        
 
+        # Handle taking boolean condition for the control relationship
+        self.input = tk.StringVar()
         if self.name == 'Control':
             EntryWithPlaceholder(self.frame, f'Condition (ex. x > 30)', textvariable=self.input).pack(fill='x', expand=True) 
 
@@ -156,7 +174,8 @@ class RelationshipInfo():
         else:
             self.program.insert(tk.END, "Relationship: " + self.name, '   Service A', '   Service B')
 
-        
+# Shows info for activated applications or recently activated applications
+# Info lives for the duration of the application
 class StatusInfo():
     def __init__(self, master, name, start, end, status):
         self.frame = ttk.Frame(master, padding=[5,10,5,10], relief="groove")
@@ -227,6 +246,7 @@ class App(tk.Tk):
 
         self.app_list = {}
 
+        # This saves application from listing to computer memory
         def save_to_app_list():
             app_name = simpledialog.askstring("Input", "Application Name", parent=self)
             if app_name in self.app_list:
@@ -236,28 +256,23 @@ class App(tk.Tk):
             app_box.insert(tk.END, app_name)
 
         #buttons for recipe box
-        
         ttk.Button(recipes, text='Clear', command=self.clear).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Remove', command=self.program.remove).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Run', command=lambda: self.run(self.program.get(0, tk.END))).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Build', command=save_to_app_list).pack(anchor='e', padx = 240, pady=6)
 
 
-        #Create information boxes for each Tab
-
-        # for s in available_services:
-        #     ServiceInfo(services, self.program, s)
-
-        for t in available_things:
-            ThingInfo(things, t, services, self.program)
+        # Populate thing tab
+        for i, t in enumerate(available_things):
+            ThingInfo(things, t, services, self.program, i)
         
 
 
-        # APP FRAME
-
+        # Applications tab
         app_box = DragDropListbox(apps)
         app_box.pack()
         
+        # Runs application in the background and posts status
         def activate():
             cursor = app_box.getCurrent()
             if cursor == None:
@@ -273,6 +288,7 @@ class App(tk.Tk):
             
         ttk.Button(apps, text='Activate', command=activate).pack()
 
+        # Move appliction from memory to listing
         def load():
             cursor = app_box.getCurrent()
             if cursor == None:
@@ -283,6 +299,7 @@ class App(tk.Tk):
                 self.program.insert(tk.END, action)
         ttk.Button(apps, text='Load', command=load).pack()
 
+        # Move application from listing or memory to disk for permanent storage
         def save_to_file():
             cursor = app_box.getCurrent()
             if cursor == None:
@@ -299,10 +316,7 @@ class App(tk.Tk):
             self.log(f'Saved {name} to {os.getcwd()}/saves/{name}.')
         ttk.Button(apps, text='Save', command=save_to_file).pack()
 
-
-        
-
-
+        # Removes application from both disk and memory
         def delete():
             cursor = app_box.getCurrent()
             if cursor == None:
@@ -319,12 +333,14 @@ class App(tk.Tk):
 
         ttk.Button(apps, text='Delete', command=delete).pack()
 
+        # Pulls applications from the saves directory into application list
         def upload():
+            has = set([s.name for s in available_services])
             for _, subdirectories, _ in os.walk('./saves'):
                 for proj in subdirectories:
                     with open(os.path.join(os.getcwd(), 'saves/'+proj+'/services'), 'rb') as f:
                         for service in pickle.load(f):
-                            if service not in available_services:
+                            if service.name not in has:
                                 available_services.append(service) 
                     with open(os.path.join(os.getcwd(), 'saves/'+proj+'/program'), 'r') as f:
                         actions = f.readlines()
@@ -332,7 +348,6 @@ class App(tk.Tk):
                     app_box.insert(tk.END, proj)
 
         upload()
-
 
         RelationshipInfo(relationships, self.program, "IF THEN", ": Conditional Evalutation")
 
@@ -350,10 +365,11 @@ class App(tk.Tk):
 
 
     
-
+    # Clear the listing page
     def clear(self):
             self.program.delete(0,tk.END)
 
+    # Check is service has input and split off arguments for execution
     def parse_service(self, action: str, services):
         x = action.find('(')
         action = action.strip()
@@ -366,6 +382,7 @@ class App(tk.Tk):
 
         return (services[name], args) if name in services else None
 
+    # Validate relationship and execute
     def parse_relationship(self, listing, i, services):
         v = self.parse_service(listing[i+1], services)
         if v != None:
@@ -432,18 +449,22 @@ class App(tk.Tk):
             services[service_a.name] = services[service_b.name]
             return None
 
+    # Print to console
     def log(self, line: str):
         self.output.configure(state='normal')
         self.output.insert('end', line+'\n')
         self.output.configure(state='disabled')
         
-
+    # Main executor that parses and runs the services
     def run(self, listing):
+        # clear output window
         self.output.configure(state='normal')
         self.output.delete('1.0', 'end')
         self.output.configure(state='disabled')
 
         services = {s.name:s for s in available_services}
+
+        # Blacklist created for competitve relationship constraints
         self.blacklist = []
 
         i = 0
@@ -529,15 +550,15 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    tweets = [json_to_tweet(t) for t in listen_for_json()]
-    available_things = tweets_to_things(tweets)
-    available_services = tweets_to_services(tweets)
+    # tweets = [json_to_tweet(t) for t in listen_for_json()]
+    # available_things = tweets_to_things(tweets)
+    # available_services = tweets_to_services(tweets)
 
-    # with open('services.txt', 'rb') as f:
-    #     available_services = pickle.load(f)
+    with open('services.txt', 'rb') as f:
+        available_services = pickle.load(f)
 
-    # with open('things.txt', 'rb') as f:
-    #     available_things = pickle.load(f)
+    with open('things.txt', 'rb') as f:
+        available_things = pickle.load(f)
     
     app = App()
     app.mainloop()
