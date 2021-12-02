@@ -5,12 +5,15 @@ from utils import *
 from tkinter import simpledialog
 import os
 import shutil
+import time
 
 available_services = []
 available_things = []
 enabled_services = []
 
 execute = []
+
+global error; error = 0
 
 class DragDropListbox(tk.Listbox):
     def __init__(self, master, **kw):
@@ -142,13 +145,26 @@ class RelationshipInfo():
 
         ttk.Button(self.frame, text='+', command=self.add_to_recipe).pack()
 
-       
-
     def add_to_recipe(self):
         if self.name == 'Control':
             self.program.insert(tk.END, f'Relationship: Control({self.input.get()})', '   Service A', '   Service B')
         else:
             self.program.insert(tk.END, "Relationship: " + self.name, '   Service A', '   Service B')
+
+        
+class StatusInfo():
+    def __init__(self, master, name, start, end, status):
+        self.frame = ttk.Frame(master, padding=[5,10,5,10], relief="groove")
+        self.frame.pack()
+        self.name = name
+        self.start = start
+        self.end = ttk.Label(self.frame, text=name)
+        self.status = ttk.Label(self.frame, text=status)
+
+        ttk.Label(self.frame, text=name).pack()
+        ttk.Label(self.frame, text=start).pack()
+        self.end.pack()
+        self.status.pack()
 
 
 class App(tk.Tk):
@@ -216,7 +232,7 @@ class App(tk.Tk):
         
         ttk.Button(recipes, text='Clear', command=self.clear).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Remove', command=self.program.remove).pack(anchor='e', padx = 240, pady=6)
-        ttk.Button(recipes, text='Run', command=self.run).pack(anchor='e', padx = 240, pady=6)
+        ttk.Button(recipes, text='Run', command=lambda: self.run(self.program.get(0, tk.END))).pack(anchor='e', padx = 240, pady=6)
         ttk.Button(recipes, text='Build', command=save_to_app_list).pack(anchor='e', padx = 240, pady=6)
 
 
@@ -239,11 +255,26 @@ class App(tk.Tk):
             cursor = app_box.getCurrent()
             if cursor == None:
                 return
+            name = app_box.get(cursor, cursor)[0]
+            start = time.ctime()
+            si = StatusInfo(apps, name, start, 'N/A', 'Active')
+            self.run(self.app_list[name])
+            end = time.ctime()
+            si.end.config(text=end)
+            si.status.config(text='Completed' if error == 0 else 'Inactive')
+
+            
+        ttk.Button(apps, text='Activate', command=activate).pack()
+
+        def load():
+            cursor = app_box.getCurrent()
+            if cursor == None:
+                return
             name = app_box.get(cursor, cursor)
             self.clear()
             for action in self.app_list[name[0]]:
                 self.program.insert(tk.END, action)
-        ttk.Button(apps, text='Load', command=activate).pack()
+        ttk.Button(apps, text='Load', command=load).pack()
 
         def save_to_file():
             cursor = app_box.getCurrent()
@@ -318,7 +349,7 @@ class App(tk.Tk):
             name = action[:x].lower()
             args = [int(arg) for arg in action[x+1:-1].split(', ')]
         else:
-            name = action.lower()
+            name = action.lower().strip()
             args = []
 
         return (services[name], args) if name in services else None
@@ -329,7 +360,7 @@ class App(tk.Tk):
         self.output.configure(state='disabled')
         
 
-    def run(self):
+    def run(self, listing):
         self.output.configure(state='normal')
         self.output.delete('1.0', 'end')
         self.output.configure(state='disabled')
@@ -337,16 +368,16 @@ class App(tk.Tk):
         services = {s.name:s for s in available_services}
         blacklist = []
 
-        listing = self.program.get(0, tk.END)
         i = 0
         while (i < len(listing)):
-            print("Entered wile looop")
+            
             action = listing[i]
-            print("here + i: " +  str(i))
+            
             # see Relationship: 
             if 'Relationship: ' in action:
                 if i+2 >= len(listing):
                     print('err')
+                    error = 1
                     return
                 
                 v = self.parse_service(listing[i+1], services)
@@ -362,6 +393,7 @@ class App(tk.Tk):
                 if 'Relationship: Drive' in action:
                     if len(args_b) != 0: 
                         self.log('Service B cannot take input with "Drives" relationship')
+                        error = 1
                         return
                     Relationship.Cooperative.Drive(service_a, service_b).exec(args_a)
 
@@ -376,14 +408,18 @@ class App(tk.Tk):
                     condition = action[action.find('(')+1:action.find(')')].replace(' ','')
                     if condition[0] != 'x':
                         self.log("expecting x variable for boolean expression")
+                        error = 1
                         return
                     if condition[1] not in ('>', '<', '='):
                         self.log("expecting comparison for condition (ex. >, <, =)")
+                        error = 1
                         return
                     if not condition[2:].isnumeric():
                         self.log("expecting integer value for comparison")
+                        error = 1
                         return
                     if not service_a.has_output:
+                        error = 1
                         self.log('Service A must output a value for the "Control" relationship')
                     a = int(condition[2:])
                     if condition[1] == '>':
@@ -411,6 +447,9 @@ class App(tk.Tk):
                 v = self.parse_service(action, services)
                 if v != None:
                     (service, args) = v
+                else:
+                    self.log('Could not parse service!')
+                    return
                 if service.name in blacklist:
                     if len(blacklist) == 2:
                         blacklist.remove(service.name)
@@ -423,27 +462,6 @@ class App(tk.Tk):
                     self.log(result)
             
             i += 1
-                
-
-            
-            
-            
-            # get the name of the RElationship
-            #construc the R
-            # skip over two lines in the listbox and grab those two as ser a and b
-            # exec this line:
-            
-
-    
-            
-
-        
-
-                    
-            
-       
-        
-
 
 
 if __name__ == "__main__":
