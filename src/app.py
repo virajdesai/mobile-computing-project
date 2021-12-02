@@ -150,6 +150,8 @@ class RelationshipInfo():
     def add_to_recipe(self):
         if self.name == 'Control':
             self.program.insert(tk.END, f'Relationship: Control({self.input.get()})', '   Service A', '   Service B')
+        elif self.name == 'IF THEN':
+            self.program.insert(tk.END, f'IF THEN', '   Service A', '   Service B')
         else:
             self.program.insert(tk.END, "Relationship: " + self.name, '   Service A', '   Service B')
 
@@ -330,7 +332,7 @@ class App(tk.Tk):
         upload()
 
 
-
+        RelationshipInfo(relationships, self.program, "IF THEN", ": Conditional Evalutation")
 
         #pos
         RelationshipInfo(relationships, self.program, "Drive", ": Output A-> B")
@@ -361,6 +363,71 @@ class App(tk.Tk):
 
         return (services[name], args) if name in services else None
 
+    def parse_relationship(self, listing, i, services):
+        v = self.parse_service(listing[i+1], services)
+        if v != None:
+            (service_a, args_a) = v
+
+        v = self.parse_service(listing[i+2], services)
+        if v != None:
+            (service_b, args_b) = v
+        
+        action = listing[i]
+
+        if 'Relationship: Drive' in action:
+            if len(args_b) != 0: 
+                self.log('Service B cannot take input with "Drives" relationship')
+                error = 1
+                return
+            return Relationship.Cooperative.Drive(service_a, service_b).exec(args_a)
+
+        if 'Relationship: Support' in action:
+            return Relationship.Cooperative.Support(service_a, service_b).exec(args_a, args_b)
+
+        if 'Relationship: Extend' in action:
+            return Relationship.Cooperative.Extend(service_a, service_b).exec(args_a+args_b)
+                
+        if 'Relationship: Control' in action:
+            condition = action[action.find('(')+1:action.find(')')].replace(' ','')
+            if condition[0] != 'x':
+                self.log("expecting x variable for boolean expression")
+                error = 1
+                return
+            if condition[1] not in ('>', '<', '='):
+                self.log("expecting comparison for condition (ex. >, <, =)")
+                error = 1
+                return
+            if not condition[2:].isnumeric():
+                self.log("expecting integer value for comparison")
+                error = 1
+                return
+            if not service_a.has_output:
+                error = 1
+                self.log('Service A must output a value for the "Control" relationship')
+            a = int(condition[2:])
+            if condition[1] == '>':
+                c = lambda x: int(x) > a
+            if condition[1] == '<':
+                c = lambda x: int(x) < a
+            if condition[1] == '=':
+                c = lambda x: int(x) == a
+
+            return Relationship.Cooperative.Control(service_a, service_b).exec(args_a, args_b, c)
+                
+        #Competitive
+        if 'Relationship: Interfere' in action or 'Relationship: Contest' in action:
+            self.blacklist.append(service_a.name)
+            self.blacklist.append(service_b.name)
+            return None
+
+        if 'Relationship: Refine' in action:
+            services[service_b.name] = services[service_a.name]
+            return None
+        
+        if 'Relationship: Subsume' in action:
+            services[service_a.name] = services[service_b.name]
+            return None
+
     def log(self, line: str):
         self.output.configure(state='normal')
         self.output.insert('end', line+'\n')
@@ -373,7 +440,7 @@ class App(tk.Tk):
         self.output.configure(state='disabled')
 
         services = {s.name:s for s in available_services}
-        blacklist = []
+        self.blacklist = []
 
         i = 0
         while (i < len(listing)):
@@ -383,73 +450,59 @@ class App(tk.Tk):
             # see Relationship: 
             if 'Relationship: ' in action:
                 if i+2 >= len(listing):
-                    print('err')
                     error = 1
                     return
                 
-                v = self.parse_service(listing[i+1], services)
-                if v != None:
-                    (service_a, args_a) = v
+                result = self.parse_relationship(listing, i, services)
+                if result != None:
+                    self.log(result)
+                
+                i += 3
 
-                v = self.parse_service(listing[i+2], services)
-                if v != None:
-                    (service_b, args_b) = v
-
-
-                #Cooperative
-                if 'Relationship: Drive' in action:
-                    if len(args_b) != 0: 
-                        self.log('Service B cannot take input with "Drives" relationship')
-                        error = 1
-                        return
-                    Relationship.Cooperative.Drive(service_a, service_b).exec(args_a)
-
-                if 'Relationship: Support' in action:
-                    Relationship.Cooperative.Support(service_a, service_b).exec(args_a, args_b)
-
-                if 'Relationship: Extend' in action:
+            elif 'IF THEN' in action:
+                result = None
+                # Evalutaing conditional relationship/service
+                print(action)
+                if 'Relationship: ' in listing[i+1]:
+                    print('condition is relationship')
+                    result = self.parse_relationship(listing, i, services)
+                    i += 3
+                else:
                     
-                    Relationship.Cooperative.Extend(service_a, service_b).exec(args_a+args_b)
-                
-                if 'Relationship: Control' in action:
-                    condition = action[action.find('(')+1:action.find(')')].replace(' ','')
-                    if condition[0] != 'x':
-                        self.log("expecting x variable for boolean expression")
-                        error = 1
+                    v = self.parse_service(listing[i+1], services)
+                    if v != None:
+                        (service, args) = v
+                    else:
+                        self.log('Could not parse service!')
                         return
-                    if condition[1] not in ('>', '<', '='):
-                        self.log("expecting comparison for condition (ex. >, <, =)")
-                        error = 1
-                        return
-                    if not condition[2:].isnumeric():
-                        self.log("expecting integer value for comparison")
-                        error = 1
-                        return
-                    if not service_a.has_output:
-                        error = 1
-                        self.log('Service A must output a value for the "Control" relationship')
-                    a = int(condition[2:])
-                    if condition[1] == '>':
-                        c = lambda x: int(x) > a
-                    if condition[1] == '<':
-                        c = lambda x: int(x) < a
-                    if condition[1] == '=':
-                        c = lambda x: int(x) == a
-
-                    Relationship.Cooperative.Control(service_a, service_b).exec(args_a, args_b, c)
-                
-                #Competitive
-                if 'Relationship: Interfere' in action or 'Relationship: Contest' in action:
-                    blacklist.append(service_a.name)
-                    blacklist.append(service_b.name)
-
-                if 'Relationship: Refine' in action:
-                    services[service_b.name] = services[service_a.name]
-                
-                if 'Relationship: Subsume' in action:
-                    services[service_a.name] = services[service_b.name]
-                
-                i += 2
+                    print(f'condition is service {service.name}')
+                    result = service.exec(args)
+                    i += 1
+                if result != None: # Then
+                    print('condition is satisfied')
+                    out = None
+                    if 'Relationship: ' in listing[i+1]:
+                        print('then is relationship')
+                        out = self.parse_relationship(listing, i, services)
+                        i += 3
+                    else:
+                        v = self.parse_service(listing[i+1], services)
+                        
+                        if v != None:
+                            (service, args) = v
+                        else:
+                            self.log('Could not parse service!')
+                            return
+                        print(f'then is service {service.name}')
+                        out = service.exec(args)
+                        i += 2
+                    if out != None:
+                        self.log(out)
+                else:
+                    if 'Relationship: ' in listing[i+1]:
+                        i += 3
+                    else:
+                        i += 1                 
             else:
                 v = self.parse_service(action, services)
                 if v != None:
@@ -457,10 +510,10 @@ class App(tk.Tk):
                 else:
                     self.log('Could not parse service!')
                     return
-                if service.name in blacklist:
-                    if len(blacklist) == 2:
-                        blacklist.remove(service.name)
-                    elif  len(blacklist) == 1:
+                if service.name in self.blacklist:
+                    if len(self.blacklist) == 2:
+                        self.blacklist.remove(service.name)
+                    elif  len(self.blacklist) == 1:
                         self.log(f'Service {service.name} is interfered or contested with.')
                         return
                     
@@ -468,7 +521,7 @@ class App(tk.Tk):
                 if service.has_output:
                     self.log(result)
             
-            i += 1
+                i += 1
 
 
 if __name__ == "__main__":
